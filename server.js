@@ -3,85 +3,40 @@ const bodyparser = require('body-parser');
 const bcrypt = require('bcrypt-nodejs');
 const cors = require('cors');
 
+const register = require('./controllers/register.js');
+const signin = require('./controllers/signin.js');
+const profile = require('./controllers/profile.js');
+const image = require('./controllers/image.js');
+
 const app = express();
 
-const database = {
-    users: [
-        {
-            id: '1',
-            name: 'John',
-            email: 'john@gmail.com',
-            password: 'cookies',
-            entries: 0,
-            joined: new Date()
-        },
-        {
-            id: '2',
-            name: 'Sally',
-            email: 'sally@gmail.com',
-            password: 'bananas',
-            entries: 0,
-            joined: new Date()
-        }
-    ]
-}
+const db = require('knex')({
+    client: 'pg',
+    connection: {
+      host : 'localhost',
+      user : '',
+      password: '',
+      database : 'brainapp'
+    }
+  });
+
+// db.select('*').from('users').then(data => {
+//     console.log(data);
+// });
 
 app.use(bodyparser.json());
 app.use(cors());
 
-app.get('/', (req, res) => {
-    //res.json('this is working');
-    res.json(database.users);
-});
+//dependency injection
+app.post('/signin', signin.handleSignin(db, bcrypt));
 
-app.post('/signin', (req, res) => {
-    if (req.body.email === database.users[0].email &&
-        req.body.password === database.users[0].password)
-        res.json(database.users[0]);
-    else
-        res.status(400).json('error logging in');
-});
+app.post('/register', register.handleRegister(db, bcrypt));
 
-app.post('/register', (req, res) => {
-    const {email, password, name } = req.body;
-    const user = {
-        id: '4',
-        name: name,
-        email: email,
-        password: password,
-        entries: 0,
-        joined: new Date()
-    }
-    database.users.push(user);
-    res.json(user);
-})
+app.get('/profile/:id', profile.handleProfile(db));
 
-app.get('/profile/:id', (req, res) => {
-    const {id} = req.params;
-    const users = database.users.filter(user => user.id === id);
+app.put('/image', image.handleImage(db));
 
-    if(users.length > 0) {
-        res.json(users[0]);
-    } else {
-        res.status(404).json('profile not found');
-    }
-})
-
-app.put('/image', (req, res) => {
-    const {id} = req.body;
-    let found = false;
-    database.users.forEach(user => {
-        if(user.id === id) {
-            found = true;
-            user.entries++;
-            return res.json(user);
-        } 
-    });
-
-    if(!found) {
-        res.status(404).json('profile not found');
-    }
-});
+app.post('/imageurl', image.handleApiCall);
 
 app.listen(3001, () => {
     console.log('app is running in port 3001');
